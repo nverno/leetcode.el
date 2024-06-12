@@ -8,5 +8,4 @@
 (development
  (depends-on "dash")
  (depends-on "graphql")
- (depends-on "spinner")
- (depends-on "aio"))
+ (depends-on "spinner"))
