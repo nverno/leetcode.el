@@ -176,8 +176,10 @@ the lines/columns in the frame."
 (defcustom leetcode-display-buffer-alist
   '((display-buffer-reuse-window)
     (window-height)
-    (reusable-frames . visible))
-  "Configuration for `display-buffer' when showing results."
+    (reusable-frames . visible)
+    ;; (body-function . (lambda (w) (setq other-window-scroll-buffer (window-buffer w))))
+    )
+  "Display buffer action used when displaying results."
   :type 'alist)
 
 
@@ -558,8 +560,9 @@ If CREATE is non-nil, create new buffer when necessary."
   "Get id of the current problem in `leetcode-problems-mode'."
   (string-to-number (aref (tabulated-list-get-entry) 1)))
 
-(defun leetcode-current-problem-id (&optional buffer)
-  "Return the problem-id associated with BUFFER or nil."
+(defun leetcode-current-problem-id (&optional buffer no-error)
+  "Return the problem-id associated with BUFFER or nil.
+If NO-ERROR is non-nil, dont error when no problem-id is found."
   (or buffer (setq buffer (current-buffer)))
   (with-current-buffer buffer
     (or leetcode--problem-id
@@ -572,11 +575,14 @@ If CREATE is non-nil, create new buffer when necessary."
                  (when (eq (cl-struct-slot-value 'leetcode-buffers buf-type bufs)
                            buffer)
                    (throw 'done id)))
-               leetcode--active)))))))
+               leetcode--active))))
+        (unless no-error
+          (user-error "No current problem id found for %S" buffer)))))
 
-(defun leetcode-problem-buffers (&optional problem-id)
-  "Return buffers for PROBLEM-ID or the current buffer."
-  (or problem-id (setq problem-id (leetcode-current-problem-id)))
+(defun leetcode-problem-buffers (&optional problem-id buffer no-error)
+  "Return buffers for PROBLEM-ID, BUFFER, or the current buffer by default.
+If NO-ERROR is non-nil, dont error when no problem-id is found."
+  (or problem-id (setq problem-id (leetcode-current-problem-id buffer no-error)))
   (when problem-id
     (gethash problem-id leetcode--active nil)))
 
@@ -1099,11 +1105,11 @@ CALLBACK is called as (callback RESULT RESULT-BUF CODE-BUF)."
              (judge_type  . "small"))
      :on-response (lambda (res)
                     (let-alist res
-                      (display-buffer result leetcode-display-buffer-alist)
                       (with-current-buffer result
                         (let ((inhibit-read-only t))
                           (erase-buffer)
-                          (insert "Your input:\n" .test_case "\n\n"))))))))
+                          (insert "Your input:\n" .test_case "\n\n")))
+                      (display-buffer result leetcode-display-buffer-alist))))))
 
 (defun leetcode--show-submission-result (result result-buf code-buf)
   "Format RESULT in RESULT-BUF based on status code.
@@ -1126,6 +1132,8 @@ Error info comes from submission RESULT.
                            (leetcode--add-font-lock
                             (format "%s (%s/%s)" ,msg ,correct ,tests) ',face))))
     (let-alist result
+      (when (>= .status_code 14)
+        (setq next-error-last-buffer result-buf))
       (with-current-buffer result-buf
         (let ((inhibit-read-only t))
           (erase-buffer)
@@ -1156,6 +1164,8 @@ Error info comes from submission RESULT.
 CODE-BUF is the source buffer."
   (with-current-buffer code-buf (leetcode--loading-mode -1))
   (let-alist results
+    (when (>= .status_code 14)
+      (setq next-error-last-buffer result-buf))
     (with-current-buffer result-buf
       (let ((inhibit-read-only t))
         (goto-char (point-max))
@@ -1213,8 +1223,6 @@ See `leetcode-display-configuration' for more details."
   "Restore the window layout based on current buffer's associated problem id."
   (interactive)
   (let ((problem-id (leetcode-current-problem-id)))
-    (unless problem-id
-      (user-error "Current problem id not found"))
     (unless (buffer-live-p (leetcode-detail-buffer problem-id))
       (leetcode-show-problem problem-id))
     (leetcode-get-or-create-buffers problem-id)
@@ -1312,9 +1320,7 @@ For example: in an org-link elisp:(leetcode-show-problem-by-slug \"3sum\")."
 (defun leetcode-show-current-problem ()
   "Jump to description for current problem."
   (interactive)
-  (if-let ((id (leetcode-current-problem-id)))
-      (leetcode-show-problem id)
-    (user-error "Current problem not found")))
+  (leetcode-show-problem (leetcode-current-problem-id)))
 
 (defun leetcode-view-problem (problem-id)
   "Display PROBLEM-ID's problem description in another window."
@@ -1324,7 +1330,7 @@ For example: in an org-link elisp:(leetcode-show-problem-by-slug \"3sum\")."
 (defun leetcode-view-current-problem ()
   "Display current problem's description in another window."
   (interactive)
-  (leetcode-view-problem (leetcode--problems-current-id)))
+  (leetcode-view-problem (leetcode-current-problem-id)))
 
 (defun leetcode-show-problem-in-browser (problem-id)
   "Open the problem with id PROBLEM-ID in browser."
@@ -1339,7 +1345,7 @@ For example: in an org-link elisp:(leetcode-show-problem-by-slug \"3sum\")."
   "Open the current problem in browser.
 Call `leetcode-show-problem-in-browser' on the current problem id."
   (interactive)
-  (leetcode-show-problem-in-browser (leetcode--problems-current-id)))
+  (leetcode-show-problem-in-browser (leetcode-current-problem-id)))
 
 (defun leetcode-solve-problem (problem-id)
   "Start coding the problem with id PROBLEM-ID."
@@ -1354,9 +1360,7 @@ Call `leetcode-show-problem-in-browser' on the current problem id."
   "Start coding the current problem.
 Call `leetcode-solve-problem' on the current problem id."
   (interactive)
-  (if-let ((id (leetcode-current-problem-id)))
-      (leetcode-solve-problem id)
-    (user-error "Current problem not found")))
+  (leetcode-solve-problem (leetcode-current-problem-id)))
 
 
 ;; -------------------------------------------------------------------
@@ -1405,6 +1409,8 @@ Call `leetcode-solve-problem' on the current problem id."
                                          leetcode--lang))
                                 snippets))
              (template-code (alist-get 'code snippet)))
+        (unless template-code
+          (user-error "No template code for %s!" leetcode--lang))
         (unless (save-mark-and-excursion
                   (goto-char (point-min))
                   (search-forward (string-trim template-code) nil t))
@@ -1534,16 +1540,17 @@ Should be added to mode hooks to enable evil bindings."
 (defvar-keymap leetcode-detail-mode-map
   :doc "Keymap active in `leetcode-detail-mode'."
   :parent (make-composed-keymap leetcode-base-mode-map special-mode-map)
-  "TAB" #'forward-button
+  "TAB"       #'forward-button
   "<backtab>" #'backward-button
-  "l" #'leetcode-set-prefer-language
-  "q" #'quit-window)
+  "l"         #'leetcode-set-prefer-language
+  "q"         #'quit-window)
 
 (define-derived-mode leetcode-detail-mode special-mode "LcDetail"
   "Major mode for displaying leetcode problem details."
   :abbrev-table nil)
 
-(derived-mode-add-parents 'leetcode-detail-mode '(leetcode-base-mode))
+(when (fboundp 'derived-mode-add-parents)
+  (derived-mode-add-parents 'leetcode-detail-mode '(leetcode-base-mode)))
 
 ;;; Test Mode
 
@@ -1555,13 +1562,13 @@ Should be added to mode hooks to enable evil bindings."
 
 (defun leetcode--result-source (&rest _)
   "Return source buffer for compilation error."
-  (when-let ((bufs (leetcode-problem-buffers)))
+  (when-let ((bufs (leetcode-problem-buffers nil nil t)))
     (list (buffer-file-name (leetcode-buffers-code bufs)))))
 
 (defvar leetcode-compilation-error-regexp-alist-alist
   '((leetcode
      "Line \\([0-9]+\\): Char \\([0-9]+\\):\\(?: \\([^:]+\\):\\)?"
-     (leetcode--result-source) 1 2 nil 0 (3 compilation-error-face))
+     (leetcode--result-source) 1 2 (1) 0 (3 compilation-error-face))
     (racket
      "solution.rkt:\\([0-9]+\\):\\([0-9]+\\)\\(?:: \\([^\n ]+\\)\\)?"
      (leetcode--result-source) 1 2 (2) nil (3 font-lock-function-name-face))
@@ -1584,14 +1591,12 @@ The source buffer is used instead of the filename component which can be nil.")
 (define-derived-mode leetcode-result-mode leetcode-base-mode "LcResults"
   "Major mode in leetcode results buffers."
   :abbrev-table nil
-  (setq-local font-lock-defaults '(leetcode-result-mode-font-defaults))
+  (setq-local font-lock-defaults '(leetcode-result-mode-font-defaults nil nil))
   (setq-local compilation-error-regexp-alist-alist
               leetcode-compilation-error-regexp-alist-alist)
   (setq-local compilation-error-regexp-alist
               (mapcar #'car leetcode-compilation-error-regexp-alist-alist))
-  (compilation-minor-mode)
-  ;; Make C-x ` use this buffer
-  (setq next-error-last-buffer (current-buffer)))
+  (compilation-minor-mode t))
 
 (provide 'leetcode)
 ;; Local Variables:
