@@ -1580,7 +1580,8 @@ The source buffer is used instead of the filename component which can be nil.")
 
 (defvar leetcode-result-mode-font-defaults
   `((,(rx bol (group (or "Your input" "Status" "Runtime" "Memory Usage"
-                         "Output" "Expected" "Code output"))
+                         "Output" "Code output" "Test Case" "Answer"
+                         "Expected" "Expected Answer"))
           ":")
      (1 '(:inherit outline-1 :weight bold) t))
     (,(rx bol (group (or "panic")) ":")
