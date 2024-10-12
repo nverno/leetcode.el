@@ -1290,7 +1290,8 @@ PROBLEM-INFO is metadata for PROBLEM."
          (detail-buf (or (leetcode-detail-buffer problem-id)
                          (leetcode--render-detail-buffer problem problem-info))))
     (leetcode--maybe-focus)
-    (switch-to-buffer detail-buf)))
+    (switch-to-buffer detail-buf)
+    (setq-local leetcode--problem-id problem-id)))
 
 (defun leetcode--read-problem-or-current (&rest args)
   "Return problem id with completing read or `leetcode-current-problem-id'.
@@ -1436,8 +1437,10 @@ major mode by `leetcode-prefer-language'and `auto-mode-alist'."
                 (leetcode-solution-minor-mode t))))
         ;; Setup test buffer
         (with-current-buffer test
-          (erase-buffer)
-          (insert .exampleTestcases))
+          ;; Don't overwrite previously added test cases
+          (when (zerop (buffer-size))
+            (let ((buffer-undo-list t))
+              (save-excursion (insert .exampleTestcases)))))
         (leetcode--solving-window-layout)
         (set-buffer code)))))
 
@@ -1543,9 +1546,18 @@ Should be added to mode hooks to enable evil bindings."
   "TAB"       #'forward-button
   "<backtab>" #'backward-button
   "l"         #'leetcode-set-prefer-language
+  "s"         #'leetcode-solve-current-problem
+  "b"         #'leetcode-show-current-problem-in-browser
   "q"         #'quit-window)
 
-(define-derived-mode leetcode-detail-mode special-mode "LcDetail"
+(easy-menu-define leetcode-detail-mode-menu leetcode-detail-mode-map
+  "Leetcode Detail Menu"
+  '("Leetcode"
+    ["Solve" leetcode-solve-current-problem t]
+    ["Set Language" leetcode-set-prefer-language t]
+    ["Open problem in Browser" leetcode-show-current-problem-in-browser t]))
+
+(define-derived-mode leetcode-detail-mode special-mode "Leetcode"
   "Major mode for displaying leetcode problem details."
   :abbrev-table nil)
 
@@ -1554,7 +1566,7 @@ Should be added to mode hooks to enable evil bindings."
 
 ;;; Test Mode
 
-(define-derived-mode leetcode-test-mode leetcode-base-mode "LcTest"
+(define-derived-mode leetcode-test-mode leetcode-base-mode "Leetcode Tests"
   "Major mode for displaying leetcode test cases."
   :abbrev-table nil)
 
@@ -1589,7 +1601,7 @@ The source buffer is used instead of the filename component which can be nil.")
   "Additional font-locking in `leetcode-result-mode'.")
 
 
-(define-derived-mode leetcode-result-mode leetcode-base-mode "LcResults"
+(define-derived-mode leetcode-result-mode leetcode-base-mode "Leetcode Results"
   "Major mode in leetcode results buffers."
   :abbrev-table nil
   (setq-local font-lock-defaults '(leetcode-result-mode-font-defaults nil nil))
