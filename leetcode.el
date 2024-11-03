@@ -340,11 +340,11 @@ VALUE should be the referer."
 
 (defun leetcode--maybe-csrf-token ()
   "Return csrf token if it exists, otherwise return nil."
-  (if-let ((cookie (seq-find
-                    (lambda (item)
-                      (string= (aref item 1)
-                               leetcode--cookie-csrftoken))
-                    (url-cookie-retrieve leetcode--domain "/" t))))
+  (if-let* ((cookie (seq-find
+                     (lambda (item)
+                       (string= (aref item 1)
+                                leetcode--cookie-csrftoken))
+                     (url-cookie-retrieve leetcode--domain "/" t))))
       (aref cookie 2)))
 
 (defun leetcode--csrf-token ()
@@ -465,7 +465,7 @@ PROBLEM-ID and TITLE-SLUG come from the leetcode api. SUFFIX is entry matching
   "Return buffers for PROBLEM-ID, creating them if necessary.
 When LANG is non-nil, reset code buffer when it doesnt match LANG."
   (let ((bufs (gethash problem-id leetcode--active nil)))
-    (when-let ((code (and bufs lang (leetcode-buffers-code bufs))))
+    (when-let* ((code (and bufs lang (leetcode-buffers-code bufs))))
       (unless (and (buffer-live-p code)
                    (string-suffix-p
                     (buffer-name code)
@@ -568,7 +568,7 @@ If NO-ERROR is non-nil, dont error when no problem-id is found."
     (or leetcode--problem-id
         (if (derived-mode-p 'leetcode-problems-mode)
             (leetcode--problems-current-id)
-          (when-let ((buf-type (leetcode--buffer-type buffer)))
+          (when-let* ((buf-type (leetcode--buffer-type buffer)))
             (catch 'done
               (maphash
                (lambda (id bufs)
@@ -607,7 +607,7 @@ If STATUS is an error, the error message is prefixed with SUBMIT-TYPE."
   (declare (indent 2))
   (and (symbolp submit-type)
        (setq submit-type (symbol-name submit-type)))
-  `(if-let ((err (plist-get ,status :error)))
+  `(if-let* ((err (plist-get ,status :error)))
        (leetcode--debug (format (concat ,submit-type " error: %S") err))
      (let ((it (leetcode--json-read (current-buffer))))
        ,@body)))
@@ -713,7 +713,7 @@ It also cleans LeetCode cookies in `url-cookie-file'."
 
 (defun leetcode--logged-in-p ()
   "Return non-nil if user is logged in."
-  (when-let ((username (leetcode-user-username leetcode--user)))
+  (when-let* ((username (leetcode-user-username leetcode--user)))
     (unless (string-empty-p username)
       (seq-find (lambda (item)
                   (string= (aref item 1) leetcode--cookie-session))
@@ -1276,6 +1276,7 @@ PROBLEM-INFO is problem's metadata."
                      (browse-url
                       (concat (leetcode--problem-link title-slug) "/solution")))
            'help-echo "Open the problem solution page in browser."))
+        (set-buffer-modified-p nil)
         (rename-buffer (leetcode--make-buffer-name problem-id "detail"))
         (leetcode-detail-mode)
         (goto-char (point-min))
@@ -1302,7 +1303,7 @@ ARGS are passed to `leetcode-read-problem'."
 (defun leetcode-show-problem (problem-id)
   "Jump to description for problem with id PROBLEM-ID."
   (interactive (list (leetcode--read-problem-or-current "Show problem: ")))
-  (if-let ((buf (leetcode-detail-buffer problem-id)))
+  (if-let* ((buf (leetcode-detail-buffer problem-id)))
       (pop-to-buffer buf)
     (leetcode--ensure-problems)
     (let* ((problem-info (leetcode--problem-from-id problem-id))
@@ -1574,7 +1575,7 @@ Should be added to mode hooks to enable evil bindings."
 
 (defun leetcode--result-source (&rest _)
   "Return source buffer for compilation error."
-  (when-let ((bufs (leetcode-problem-buffers nil nil t)))
+  (when-let* ((bufs (leetcode-problem-buffers nil nil t)))
     (list (buffer-file-name (leetcode-buffers-code bufs)))))
 
 (defvar leetcode-compilation-error-regexp-alist-alist
