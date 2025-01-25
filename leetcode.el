@@ -1249,7 +1249,6 @@ PROBLEM-INFO is problem's metadata."
                 ;; Sometimes LeetCode doesn't have a '<p>' at the outermost...
                 ;; Note: content might be nil for a paid problem
                 "<p>" (or .content "<i>Description not available</i>") "</p>")
-        (setq shr-current-font t)
         (leetcode--replace-in-buffer "" "")
         ;; NOTE: shr.el can't render "https://xxxx.png", so we use "http"
         (leetcode--replace-in-buffer "https" "http")
