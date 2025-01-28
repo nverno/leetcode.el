@@ -1296,9 +1296,11 @@ PROBLEM-INFO is metadata for PROBLEM."
 (defun leetcode--read-problem-or-current (&rest args)
   "Return problem id with completing read or `leetcode-current-problem-id'.
 ARGS are passed to `leetcode-read-problem'."
+  (leetcode--ensure-problems)
   (or (apply #'leetcode-read-problem args)
       (leetcode-current-problem-id)))
 
+;;;###autoload
 (defun leetcode-show-problem (problem-id)
   "Jump to description for problem with id PROBLEM-ID."
   (interactive (list (leetcode--read-problem-or-current "Show problem: ")))
@@ -1323,6 +1325,7 @@ For example: in an org-link elisp:(leetcode-show-problem-by-slug \"3sum\")."
   (interactive)
   (leetcode-show-problem (leetcode-current-problem-id)))
 
+;;;###autoload
 (defun leetcode-view-problem (problem-id)
   "Display PROBLEM-ID's problem description in another window."
   (interactive (list (leetcode--read-problem-or-current "View problem: ")))
@@ -1348,6 +1351,7 @@ Call `leetcode-show-problem-in-browser' on the current problem id."
   (interactive)
   (leetcode-show-problem-in-browser (leetcode-current-problem-id)))
 
+;;;###autoload
 (defun leetcode-solve-problem (problem-id)
   "Start coding the problem with id PROBLEM-ID."
   (interactive (list (leetcode--read-problem-or-current "Solve problem: ")))
