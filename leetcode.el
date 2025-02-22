@@ -82,9 +82,8 @@
 
 (defun leetcode--check-deps ()
   "Check if all dependencies installed."
-  (if (executable-find "my_cookies") t
-    (leetcode--install-my-cookie)
-    nil))
+  (or (executable-find "my_cookies")
+      (ignore (leetcode--install-my-cookie))))
 
 (defgroup leetcode nil
   "A Leetcode client."
