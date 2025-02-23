@@ -1589,6 +1589,9 @@ Should be added to mode hooks to enable evil bindings."
      (leetcode--result-source) 1 2 (2) nil (3 font-lock-function-name-face))
     (go
      "solution.go, line \\([0-9]+\\)"
+     (leetcode--result-source) 1)
+    (ruby
+     "Line \\([0-9]+\\):"
      (leetcode--result-source) 1))
   "Compilation error regexps to links errors in `leetcode-result-mode'.
 The source buffer is used instead of the filename component which can be nil.")
